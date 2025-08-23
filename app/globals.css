@@ -1,0 +1,215 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222.2 84% 4.9%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222.2 84% 4.9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221.2 83.2% 53.3%;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222.2 84% 4.9%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 224.3 76.3% 94.1%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Animated gradient background for premium dark theme */
+@property --c1 {
+  syntax: '<color>';
+  inherits: false;
+  initial-value: #170e2a;
+}
+@property --c2 {
+  syntax: '<color>';
+  inherits: false;
+  initial-value: #0b1b34;
+}
+@property --c3 {
+  syntax: '<color>';
+  inherits: false;
+  initial-value: #0a2423;
+}
+
+.animated-gradient-bg {
+  /* LIGHT MODE: flowing cyan / yellow / gray on white */
+  /* Layer multiple radial gradients over white and animate positions subtly */
+  background-color: #ffffff;
+  background-image:
+    radial-gradient(40% 35% at 20% 25%, rgba(255, 233, 155, 0.55), rgba(255, 233, 155, 0) 60%),
+    radial-gradient(45% 40% at 80% 18%, rgba(163, 238, 255, 0.60), rgba(163, 238, 255, 0) 62%),
+    radial-gradient(50% 45% at 70% 80%, rgba(210, 214, 225, 0.55), rgba(210, 214, 225, 0) 65%),
+    radial-gradient(55% 50% at 10% 85%, rgba(255, 208, 196, 0.45), rgba(255, 208, 196, 0) 65%);
+  background-size: 200% 200%, 200% 200%, 200% 200%, 200% 200%;
+  background-position: 0% 0%, 100% 0%, 100% 100%, 0% 100%;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  animation: lightFlow 36s ease-in-out infinite alternate;
+
+  /* Layer on top of the base bg to preserve design tokens */
+  position: relative;
+  isolation: isolate;
+}
+
+.dark .animated-gradient-bg {
+  /* DARK MODE: keep the existing premium SVG gradient */
+  background-image: url('/gradient-bg.svg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  animation: none; /* SVG is static */
+}
+
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 100% 50%;
+  }
+}
+
+/* Subtle color shifts optimized for focus and calm */
+@keyframes gradientColors {
+  0% {
+    --c1: #0f2027; /* deep navy-teal */
+    --c2: #203a43; /* mid teal-blue */
+    --c3: #2c5364; /* lighter teal */
+  }
+  50% {
+    --c1: #1a252f; /* slightly warmer navy */
+    --c2: #243b48; /* deeper blue-teal */
+    --c3: #2f5468; /* brighter teal */
+  }
+  100% {
+    --c1: #0f2027; /* deep navy-teal */
+    --c2: #203a43; /* mid teal-blue */
+    --c3: #2c5364; /* lighter teal */
+  }
+}
+
+/* Light mode flowing animation */
+@keyframes lightFlow {
+  0% {
+    background-position: 0% 0%, 100% 0%, 100% 100%, 0% 100%;
+  }
+  50% {
+    background-position: 30% 20%, 70% 10%, 80% 70%, 15% 85%;
+  }
+  100% {
+    background-position: 100% 100%, 0% 100%, 0% 0%, 100% 0%;
+  }
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .animated-gradient-bg {
+    animation: none;
+    background-size: cover;
+  }
+}
+
+/* Mobile tuning for smoother performance */
+@media (max-width: 768px) {
+  .animated-gradient-bg {
+    background-size: 300% 300%;
+    animation-duration: 18s, 54s;
+  }
+}
+
+/* Soft vignette + subtle film grain overlay */
+.animated-gradient-bg::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0; /* sits above gradient background, below content */
+
+  /* Vignette plus ultra subtle noise texture (no images) */
+  background-image:
+    radial-gradient(120% 100% at 50% 30%, rgba(0,0,0,0) 0%, rgba(0,0,0,0.06) 58%, rgba(0,0,0,0.10) 100%),
+    conic-gradient(from 0deg at 50% 50%, rgba(0,0,0,0.02), rgba(0,0,0,0.00) 25%, rgba(0,0,0,0.02) 50%, rgba(0,0,0,0.00) 75%, rgba(0,0,0,0.02));
+  background-size: 100% 100%, 200% 200%;
+  background-repeat: no-repeat, repeat;
+  mix-blend-mode: normal;
+  opacity: 0.25; /* softer in light mode */
+}
+
+.dark .animated-gradient-bg::before {
+  /* stronger vignette for dark */
+  background-image:
+    radial-gradient(120% 100% at 50% 30%, rgba(0,0,0,0) 0%, rgba(0,0,0,0.10) 55%, rgba(0,0,0,0.22) 100%),
+    conic-gradient(from 0deg at 50% 50%, rgba(255,255,255,0.02), rgba(255,255,255,0.00) 25%, rgba(255,255,255,0.02) 50%, rgba(255,255,255,0.00) 75%, rgba(255,255,255,0.02));
+  opacity: 0.6;
+}
+
+/* Loading bar shimmer animation for long-form generation */
+@keyframes progress {
+  0% {
+    transform: translateX(-66%);
+  }
+  50% {
+    transform: translateX(10%);
+  }
+  100% {
+    transform: translateX(120%);
+  }
+}
