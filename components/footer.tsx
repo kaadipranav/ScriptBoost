@@ -1,4 +1,5 @@
 import Link from "next/link"
+import type { Route } from "next"
 
 export function Footer() {
   return (
@@ -29,19 +30,19 @@ export function Footer() {
         </div>
         <div className="flex items-center space-x-4">
           <Link
-            href="/privacy"
+            href={"/privacy" as Route}
             className="text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             Privacy
           </Link>
           <Link
-            href="/terms"
+            href={"/terms" as Route}
             className="text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             Terms
           </Link>
           <Link
-            href="/contact"
+            href={"/contact" as Route}
             className="text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             Contact
