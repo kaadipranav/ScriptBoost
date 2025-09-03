@@ -59,9 +59,9 @@ Rules:
 - Include clear transitions and engagement prompts.
 - CTAs must reflect goal: ${input.contentGoal} (${goalCTA}).
 - If chapters requested, generate timestamped chapter titles that approximately sum to ${lengthDesc}. Distribute starts to reflect pacing (intro ~${Math.round(introPct*100)}%, outro ~${Math.round(outroPct*100)}%).
-- Keep intro concise and hook-driven (~${Math.round(introPct*minutes)} min). Keep outro concise with CTA (~${Math.round(outroPct*minutes)} min).
 - Aim total words between ${minWords}-${maxWords}. Avoid compressing a ${minutes} minute script into fewer words.
-- Do not include backticks or extra prose; JSON only.
+- Do not include backticks or extra prose; JSON only.`
+
 }
 
 function readableAudience(aud: LongFormInput['targetAudience']): string {
