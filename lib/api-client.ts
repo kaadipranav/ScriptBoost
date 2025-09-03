@@ -13,6 +13,45 @@ export class APIError extends Error {
   }
 }
 
+// ===== EXPORT & QUICK-EDIT CLIENT =====
+export type ExportFormat = 'pdf' | 'docx' | 'pptx' | 'srt'
+
+export async function exportScript(script: GeneratedScript, format: ExportFormat): Promise<Blob> {
+  const res = await fetch('/api/export', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ script, format }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new APIError(err.error || `Failed to export (${format})`, res.status)
+  }
+  const contentType = res.headers.get('Content-Type') || 'application/octet-stream'
+  const buf = await res.arrayBuffer()
+  return new Blob([buf], { type: contentType })
+}
+
+export async function quickEditScript(
+  script: GeneratedScript,
+  action: 'shorter' | 'longer' | 'rewrite_hook' | 'change_tone',
+  tone?: 'casual' | 'professional' | 'humorous' | 'dramatic'
+): Promise<GeneratedScript> {
+  const res = await fetch('/api/quick-edit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ script, action, tone }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new APIError(err.error || 'Failed to apply quick edit', res.status)
+  }
+  const data: APIResponse<GeneratedScript> = await res.json()
+  if (!data.success || !data.data) {
+    throw new APIError(data.error || 'Quick edit failed', 500)
+  }
+  return data.data
+}
+
 export class RetryableError extends APIError {
   constructor(message: string, status: number, code?: string) {
     super(message, status, code, true)
