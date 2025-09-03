@@ -77,11 +77,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} animated-gradient-bg`}>
-        <ThemeProvider
-          defaultTheme="dark"
-          storageKey="scriptboost-theme"
-        >
+      <body className={`${inter.className}`}>
+        <ThemeProvider>
           <div className="relative z-10 flex min-h-screen flex-col">
             <Navigation />
             <main className="flex-1">{children}</main>

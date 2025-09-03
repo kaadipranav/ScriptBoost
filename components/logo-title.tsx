@@ -20,11 +20,12 @@ export function LogoTitle() {
       const max = Math.max(rect.width, rect.height)
       // Scale from 1.0 to 1.06 when cursor is near; clamp
       const proximity = Math.max(0, 1 - dist / (max * 0.9))
-      const scale = 1 + proximity * 0.06
-      const glow = Math.min(0.35, proximity * 0.5)
+      const scale = 1 + proximity * 0.04
+      // Softer glow overall to avoid halo in dark mode
+      const glow = Math.min(0.18, proximity * 0.28)
       setStyle({
         transform: `scale(${scale.toFixed(3)})`,
-        textShadow: `0 8px 30px rgba(59,130,246,${glow})`,
+        textShadow: `0 8px 24px rgba(59,130,246,${glow})`,
         transition: 'transform 120ms ease-out',
       })
     }
@@ -43,9 +44,9 @@ export function LogoTitle() {
     <div ref={ref} className="inline-block will-change-transform pt-2 pb-3">
       <h1
         style={style}
-        className={`${heading.className} select-none text-[42px] leading-tight md:text-[72px] md:leading-[1.05] font-extrabold text-gray-900 dark:text-white mb-2`}
+        className={`${heading.className} select-none text-[42px] leading-tight md:text-[72px] md:leading-[1.05] font-extrabold text-foreground mb-2`}
       >
-        Script<span className="text-blue-600">Boost</span>
+        Script<span className="text-primary">Boost</span>
       </h1>
     </div>
   )

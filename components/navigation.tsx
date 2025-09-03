@@ -47,13 +47,13 @@ export function Navigation() {
           <div className="w-full flex-1 md:w-auto md:flex-none">
             {/* Search or other content can go here */}
           </div>
-          <nav className="flex items-center gap-2">
+          <nav className="flex items-center gap-2 pr-1 md:pr-0">
             {/* Temporarily disable Sign In to avoid 404 */}
             {/* <Button variant="ghost" size="sm">Sign In</Button> */}
+            <ThemeToggle />
             <Button size="sm" asChild>
               <Link href="#generator">Get Started</Link>
             </Button>
-            <ThemeToggle />
           </nav>
         </div>
       </div>

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+export const runtime = 'nodejs'
 import { GeneratedScript } from '@/types'
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
-import { Document, Packer, Paragraph, HeadingLevel, TextRun, AlignmentType, Heading } from 'docx'
+import { Document, Packer, Paragraph, HeadingLevel, TextRun, AlignmentType } from 'docx'
 import PptxGenJS from 'pptxgenjs'
 
 function buildPlainText(script: GeneratedScript): string {
@@ -131,7 +132,7 @@ async function buildPPTX(script: GeneratedScript): Promise<Buffer> {
   slide.addText('CTA', { x: 0.5, y: 0.5, fontSize: 24, bold: true })
   slide.addText(script.cta.text, { x: 0.5, y: 1.2, w: 9, h: 4.5, fontSize: 20 })
 
-  const arrBuf = await pptx.write('nodebuffer')
+  const arrBuf = await pptx.write({ outputType: 'nodebuffer' })
   return arrBuf as Buffer
 }
 

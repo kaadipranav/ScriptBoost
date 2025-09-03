@@ -56,9 +56,9 @@ export function HeroSection() {
       
       {/* Features Preview */}
       <div className="mx-auto grid max-w-5xl grid-cols-1 gap-6 md:grid-cols-3">
-        <div className="flex flex-col items-center space-y-2 border border-border/40 rounded-lg p-6 bg-card">
-          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900">
-            <Zap className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+        <div className="flex flex-col items-center space-y-2 border border-border/60 rounded-lg p-6 bg-card">
+          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-secondary">
+            <Zap className="h-6 w-6 text-primary" />
           </div>
           <h3 className="text-xl font-semibold">Lightning Fast</h3>
           <p className="text-center text-sm text-muted-foreground">
@@ -66,9 +66,9 @@ export function HeroSection() {
           </p>
         </div>
         
-        <div className="flex flex-col items-center space-y-2 border border-border/40 rounded-lg p-6 bg-card">
-          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900">
-            <Target className="h-6 w-6 text-green-600 dark:text-green-400" />
+        <div className="flex flex-col items-center space-y-2 border border-border/60 rounded-lg p-6 bg-card">
+          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-secondary">
+            <Target className="h-6 w-6 text-primary" />
           </div>
           <h3 className="text-xl font-semibold">Platform Optimized</h3>
           <p className="text-center text-sm text-muted-foreground">
@@ -76,9 +76,9 @@ export function HeroSection() {
           </p>
         </div>
         
-        <div className="flex flex-col items-center space-y-2 border border-border/40 rounded-lg p-6 bg-card">
-          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-900">
-            <Sparkles className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+        <div className="flex flex-col items-center space-y-2 border border-border/60 rounded-lg p-6 bg-card">
+          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-secondary">
+            <Sparkles className="h-6 w-6 text-primary" />
           </div>
           <h3 className="text-xl font-semibold">High Converting</h3>
           <p className="text-center text-sm text-muted-foreground">

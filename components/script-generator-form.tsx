@@ -22,6 +22,10 @@ interface FormData {
   scriptLength: ScriptLength
   platform: Platform
   additionalContext: string
+  // UI-only preferences (appended into additionalContext on submit)
+  emojiIntensity?: 'none' | 'subtle' | 'balanced' | 'heavy'
+  hookSpeed?: number // 1-10
+  hashtagCount?: number // 0-10
 }
 
 interface FormErrors {
@@ -69,6 +73,9 @@ export function ScriptGeneratorForm() {
     scriptLength: ScriptLength.MEDIUM,
     platform: Platform.TIKTOK,
     additionalContext: "",
+    emojiIntensity: 'balanced',
+    hookSpeed: 6,
+    hashtagCount: 5,
   })
 
   const [errors, setErrors] = useState<FormErrors>({})
@@ -220,10 +227,14 @@ export function ScriptGeneratorForm() {
     }, 1000)
     
     try {
+      // Merge UI-only preferences into additionalContext for better guidance
+      const prefsSummary = `\n\nPreferences: emoji=${formData.emojiIntensity}, hookSpeed=${formData.hookSpeed}/10, desiredHashtags≈${formData.hashtagCount}`
+      const mergedContext = `${formData.additionalContext || ''}${prefsSummary}`
+
       const sanitizedInput = {
         ...formData,
         niche: sanitizeInput(formData.niche),
-        additionalContext: sanitizeInput(formData.additionalContext)
+        additionalContext: sanitizeInput(mergedContext)
       }
 
       const script = await generateScript(sanitizedInput, (attempt, error) => {
@@ -638,6 +649,31 @@ export function ScriptGeneratorForm() {
               Include trending topics, brand voice, or specific calls-to-action
             </p>
             <span className="text-xs text-muted-foreground">{countWords(formData.additionalContext)}/500 words</span>
+          </div>
+        </div>
+
+        {/* UI Extras: Dropdowns & Sliders */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="space-y-2">
+            <Label className="text-base font-semibold">Emoji Intensity</Label>
+            <Select
+              value={formData.emojiIntensity}
+              onChange={(e) => updateFormData('emojiIntensity', e.target.value as FormData['emojiIntensity'])}
+              className="h-12"
+            >
+              <option value="none">None</option>
+              <option value="subtle">Subtle</option>
+              <option value="balanced">Balanced</option>
+              <option value="heavy">Heavy</option>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-base font-semibold">Hook Speed: {formData.hookSpeed}/10</Label>
+            <Slider min={1} max={10} step={1} value={formData.hookSpeed} onValueChange={(v) => updateFormData('hookSpeed', v)} />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-base font-semibold">Hashtag Count: {formData.hashtagCount}</Label>
+            <Slider min={0} max={10} step={1} value={formData.hashtagCount} onValueChange={(v) => updateFormData('hashtagCount', v)} />
           </div>
         </div>
 
