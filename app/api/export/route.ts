@@ -206,10 +206,10 @@ export async function POST(req: NextRequest) {
 
     if (format === 'pptx') {
       const file = await buildPPTX(data)
-      // Ensure BodyInit compatibility: pass an ArrayBufferView (Uint8Array) to Blob
-      const view = new Uint8Array(file.buffer, file.byteOffset, file.byteLength)
-      const blob = new Blob([view], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' })
-      return new NextResponse(blob, {
+      // Create a fresh ArrayBuffer (not SAB) and copy bytes, then return as BodyInit
+      const ab = new ArrayBuffer(file.byteLength)
+      new Uint8Array(ab).set(file)
+      return new NextResponse(ab as unknown as BodyInit, {
         headers: {
           'Content-Type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
           'Content-Disposition': `attachment; filename="${filenameBase}.pptx"`
