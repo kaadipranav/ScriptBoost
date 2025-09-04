@@ -206,9 +206,9 @@ export async function POST(req: NextRequest) {
 
     if (format === 'pptx') {
       const file = await buildPPTX(data)
-      // Ensure BodyInit compatibility in Node/Edge runtimes by converting Buffer to ArrayBuffer
-      const arrayBuffer = file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength)
-      const blob = new Blob([arrayBuffer], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' })
+      // Ensure BodyInit compatibility: pass an ArrayBufferView (Uint8Array) to Blob
+      const view = new Uint8Array(file.buffer, file.byteOffset, file.byteLength)
+      const blob = new Blob([view], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' })
       return new NextResponse(blob, {
         headers: {
           'Content-Type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
