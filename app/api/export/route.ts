@@ -206,7 +206,9 @@ export async function POST(req: NextRequest) {
 
     if (format === 'pptx') {
       const file = await buildPPTX(data)
-      return new NextResponse(file, {
+      // Ensure BodyInit compatibility in Node/Edge runtimes by using a Blob
+      const blob = new Blob([file], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' })
+      return new NextResponse(blob, {
         headers: {
           'Content-Type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
           'Content-Disposition': `attachment; filename="${filenameBase}.pptx"`
