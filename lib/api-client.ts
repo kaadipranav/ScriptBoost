@@ -1,4 +1,14 @@
-import { ScriptInput, GeneratedScript, APIResponse, LongFormGenerated, LongFormInput } from '@/types'
+import { ScriptInput, GeneratedScript, APIResponse, LongFormGenerated, LongFormInput, Platform, Tone, ContentGoal, ScriptLength, TargetAudience, LongFormLength, LongFormTone, LongFormAudience } from '@/types'
+import { sanitizeText, containsPromptInjectionAttempt, containsInappropriateContent, moderateGeneratedContent } from '@/lib/security'
+
+// In-flight request deduplication map
+const inflight = new Map<string, Promise<Response>>()
+
+function makeKey(resource: RequestInfo | URL, options?: RequestInit): string {
+  const url = typeof resource === 'string' ? resource : resource.toString()
+  const body = options && 'body' in options ? String(options.body || '') : ''
+  return `${url}::${body}`
+}
 
 export class APIError extends Error {
   constructor(
@@ -111,8 +121,34 @@ async function fetchWithTimeout(resource: RequestInfo | URL, options: RequestIni
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(resource, { ...rest, signal: controller.signal });
-    return res;
+    const start = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()
+    const key = makeKey(resource, rest)
+    let p = inflight.get(key)
+    if (!p) {
+      const req = fetch(resource, { ...rest, signal: controller.signal })
+      inflight.set(key, req)
+      p = req.finally(() => {
+        // slight delay to allow immediate re-use
+        setTimeout(() => inflight.delete(key), 0)
+      })
+    }
+    const res = await p
+    const end = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()
+    // Fire-and-forget metrics
+    try {
+      if (typeof navigator !== 'undefined' && 'sendBeacon' in navigator) {
+        const payload = JSON.stringify({
+          type: 'api',
+          url: typeof resource === 'string' ? resource : resource.toString(),
+          status: (res as Response).status,
+          durationMs: Math.round(end - start),
+          t: Date.now(),
+        })
+        const blob = new Blob([payload], { type: 'application/json' })
+        navigator.sendBeacon('/api/metrics', blob)
+      }
+    } catch {}
+    return res as Response;
   } finally {
     clearTimeout(id);
   }
@@ -180,6 +216,21 @@ export async function generateScript(
   onRetry?: (attempt: number, error: Error) => void
 ): Promise<GeneratedScript> {
   try {
+    // Security: sanitize and validate before request
+    const cleanInput: ScriptInput = {
+      ...input,
+      niche: sanitizeText(input.niche, 200),
+      additionalContext: sanitizeText(input.additionalContext || '', 500),
+    }
+    // Block prompt injection or inappropriate content
+    const combined = `${cleanInput.niche}\n${cleanInput.additionalContext || ''}`
+    if (containsPromptInjectionAttempt(combined)) {
+      throw new APIError('Unsafe input detected. Please rephrase your request.', 400, 'PROMPT_INJECTION_DETECTED')
+    }
+    if (containsInappropriateContent(combined)) {
+      throw new APIError('Request contains inappropriate content.', 400, 'INAPPROPRIATE_REQUEST')
+    }
+
     const cacheKey = `gen:${JSON.stringify(input)}`;
     const cached = getCache<GeneratedScript>(cacheKey);
     if (cached) return cached;
@@ -189,7 +240,7 @@ export async function generateScript(
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ input }),
+      body: JSON.stringify({ input: cleanInput }),
       timeoutMs: 45000, // Longer timeout for script generation
     }, onRetry);
 
@@ -219,6 +270,13 @@ export async function generateScript(
         500,
         'GENERATION_FAILED'
       )
+    }
+
+    // Content moderation on generated text (basic heuristic)
+    const allText = [data.data.hook?.text, data.data.body?.text, data.data.cta?.text].filter(Boolean).join('\n')
+    const mod = moderateGeneratedContent(allText)
+    if (!mod.safe) {
+      throw new APIError('Generated content was flagged by moderation.', 400, 'CONTENT_FLAGGED')
     }
 
     setCache(cacheKey, data.data)
@@ -307,6 +365,10 @@ export function getErrorMessage(error: unknown): string {
         return 'Too many requests. Please wait a moment before trying again.'
       case 'INVALID_INPUT':
         return 'Please check your input and try again.'
+      case 'PROMPT_INJECTION_DETECTED':
+        return 'Your input appears to contain unsafe instructions. Please rephrase your request.'
+      case 'INAPPROPRIATE_REQUEST':
+        return 'That request isn’t allowed. Please try a different topic.'
       case 'NETWORK_ERROR':
         return 'Connection failed. Please check your internet and try again.'
       case 'GENERATION_FAILED':
@@ -317,6 +379,8 @@ export function getErrorMessage(error: unknown): string {
         return 'API configuration error. Please contact support.'
       case 'QUOTA_EXCEEDED':
         return 'Daily quota exceeded. Please try again tomorrow or upgrade your plan.'
+      case 'CONTENT_FLAGGED':
+        return 'Content was flagged by moderation. Please try different inputs.'
       default:
         return error.message
     }
@@ -375,12 +439,7 @@ export function validateScriptInput(input: Partial<ScriptInput>): { isValid: boo
 }
 
 export function sanitizeInput(input: string): string {
-  return input
-    .trim()
-    .replace(/[<>]/g, '') // Remove potential HTML tags
-    .replace(/javascript:/gi, '') // Remove javascript: protocols
-    .replace(/on\w+=/gi, '') // Remove event handlers
-    .substring(0, 1000); // Limit length
+  return sanitizeText(input, 1000)
 }
 
 // ===== LONG-FORM CLIENT =====
@@ -398,6 +457,23 @@ export function validateLongFormInput(input: Partial<LongFormInput>): { isValid:
   if (!input.contentGoal) errors.push('Content goal is required')
   if (!input.tone) errors.push('Tone is required')
   if (!input.videoLengthMinutes) errors.push('Video length is required')
+
+  // Enum validations (defense-in-depth if raw strings reach here)
+  if (input.targetAudience && !(['gen-z','millennials','professionals','general-audience'] as const).includes(input.targetAudience)) {
+    errors.push('Invalid target audience selection')
+  }
+  if (input.contentGoal && !Object.values(ContentGoal).includes(input.contentGoal)) {
+    errors.push('Invalid content goal selection')
+  }
+  if (input.tone && !(['funny','professional','motivational','storytelling','casual'] as const).includes(input.tone)) {
+    errors.push('Invalid tone selection')
+  }
+  if (input.videoLengthMinutes && !Object.values(LongFormLength).includes(input.videoLengthMinutes as LongFormLength)) {
+    errors.push('Invalid video length selection')
+  }
+  if (input.niche && containsPromptInjectionAttempt(input.niche)) {
+    errors.push('Unsafe input detected in niche')
+  }
   return { isValid: errors.length === 0, errors }
 }
 
@@ -406,14 +482,28 @@ export async function generateLongFormScript(
   onRetry?: (attempt: number, error: Error) => void
 ): Promise<LongFormGenerated> {
   try {
-    const cacheKey = `gen-long:${JSON.stringify(input)}`
+    // Security: sanitize and validate before request
+    const cleanInput: LongFormInput = {
+      ...input,
+      niche: sanitizeText(input.niche, 200),
+      additionalContext: sanitizeText(input.additionalContext || '', 1000),
+    }
+    const combined = `${cleanInput.niche}\n${cleanInput.additionalContext || ''}`
+    if (containsPromptInjectionAttempt(combined)) {
+      throw new APIError('Unsafe input detected. Please rephrase your request.', 400, 'PROMPT_INJECTION_DETECTED')
+    }
+    if (containsInappropriateContent(combined)) {
+      throw new APIError('Request contains inappropriate content.', 400, 'INAPPROPRIATE_REQUEST')
+    }
+
+    const cacheKey = `gen-long:${JSON.stringify(cleanInput)}`
     const cached = getCache<LongFormGenerated>(cacheKey)
     if (cached) return cached
 
     const response = await fetchWithRetry('/api/generate-long', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ input }),
+      body: JSON.stringify({ input: cleanInput }),
       timeoutMs: 60000,
     }, onRetry)
 
@@ -438,6 +528,20 @@ export async function generateLongFormScript(
     const data: APIResponse<LongFormGenerated> = await response.json()
     if (!data.success || !data.data) {
       throw new APIError(data.error || 'Failed to generate long-form script', 500, 'GENERATION_FAILED')
+    }
+
+    // Content moderation on generated long-form text
+    const joined = [
+      data.data.outline?.intro?.title,
+      ...((data.data.outline?.sections || []).flatMap(s => [s.title, ...(s.keyPoints || [])])),
+      data.data.outline?.outro?.title,
+      data.data.script?.intro,
+      ...(data.data.script?.sections || []).map(s => s.content),
+      data.data.script?.outro,
+    ].filter(Boolean).join('\n')
+    const mod = moderateGeneratedContent(joined)
+    if (!mod.safe) {
+      throw new APIError('Generated content was flagged by moderation.', 400, 'CONTENT_FLAGGED')
     }
 
     setCache(cacheKey, data.data, 2 * DEFAULT_TTL_MS)

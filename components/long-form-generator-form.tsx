@@ -4,8 +4,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
+import { Slider } from '@/components/ui/slider'
 import { LongFormGenerated, LongFormInput, LongFormLength, LongFormTone, LongFormAudience, ContentGoal } from '@/types'
 import { generateLongFormScript, getErrorMessage, validateLongFormInput, sanitizeInput, APIError } from '@/lib/api-client'
+import { getUsageController, estimateCostUsd } from '@/lib/usage-controls'
 import { LongFormResults } from './long-form-results'
 import { Loader2 } from 'lucide-react'
 
@@ -28,6 +30,8 @@ export function LongFormGeneratorForm() {
   const [result, setResult] = useState<LongFormGenerated | null>(null)
   const [cooldownSeconds, setCooldownSeconds] = useState<number>(0)
   const [apiError, setApiError] = useState<string | null>(null)
+  const usage = getUsageController('long')
+  const [remainingGenerations, setRemainingGenerations] = useState<number>(0)
 
   // word helpers
   const countWords = (v: string) => (v.trim() ? v.trim().split(/\s+/).length : 0)
@@ -97,10 +101,14 @@ export function LongFormGeneratorForm() {
         ...form,
         additionalContext: sanitizeInput(`${form.additionalContext || ''}${prefsSummary}`)
       }
-      const data = await generateLongFormScript(payload, (attempt) => {
-        console.warn(`Retrying long-form generation, attempt ${attempt}`)
-      })
+      const data = await usage.enqueue(() =>
+        generateLongFormScript(payload, (attempt) => {
+          console.warn(`Retrying long-form generation, attempt ${attempt}`)
+        })
+      )
       setResult(data)
+      usage.recordSuccess({ niche: form.niche, tone: form.tone, estCostUsd: estimateCostUsd() })
+      setRemainingGenerations(usage.getSessionInfo().remaining)
     } catch (err) {
       if (err instanceof APIError && err.status === 429) {
         const secs = typeof err.retryAfterSeconds === 'number' && isFinite(err.retryAfterSeconds) ? Math.max(0, Math.floor(err.retryAfterSeconds)) : 30
@@ -109,6 +117,9 @@ export function LongFormGeneratorForm() {
       } else {
         setApiError(getErrorMessage(err))
       }
+      usage.recordFailure()
+      const cd = usage.getCooldownSeconds()
+      if (cd > 0) setCooldownSeconds(cd)
     } finally {
       setLoading(false)
     }
@@ -123,12 +134,20 @@ export function LongFormGeneratorForm() {
     return () => clearInterval(id)
   }, [cooldownSeconds])
 
+  // Refresh remaining generations indicator on mount
+  useEffect(() => {
+    const { remaining } = usage.getSessionInfo()
+    setRemainingGenerations(remaining)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const toneOptions: LongFormTone[] = ['funny','professional','motivational','storytelling','casual']
   const audienceOptions: LongFormAudience[] = ['gen-z','millennials','professionals','general-audience']
   const minuteOptions = [3,5,10,15,20] as const
 
   return (
     <div className="space-y-6">
+      <div className="text-xs text-muted-foreground">Remaining free generations today: <strong>{remainingGenerations}</strong> (testing mode — limits not enforced)</div>
       {(apiError || cooldownSeconds > 0) && (
         <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-lg">
           <p className="text-destructive text-sm">
@@ -158,9 +177,24 @@ export function LongFormGeneratorForm() {
           <div>
             <Label className="text-muted-foreground">Target Audience</Label>
             <Select disabled={loading} value={form.targetAudience} onChange={e => update('targetAudience', e.target.value as LongFormAudience)}>
-              {audienceOptions.map(a => (<option key={a} value={a}>{a}</option>))}
+              <optgroup label="Generational">
+                <option value="gen-z">Gen Z (18–26)</option>
+                <option value="millennials">Millennials (27–42)</option>
+              </optgroup>
+              <optgroup label="Professional">
+                <option value="professionals">Professionals</option>
+                <option value="general-audience">General Audience</option>
+              </optgroup>
             </Select>
             {errors.targetAudience && <p className="text-sm text-destructive mt-1">{errors.targetAudience}</p>}
+            {!errors.targetAudience && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {form.targetAudience === 'gen-z' && 'Trend-focused, fast-paced content'}
+                {form.targetAudience === 'millennials' && 'Career-focused, nostalgia-friendly'}
+                {form.targetAudience === 'professionals' && 'Outcome-driven, clear structure'}
+                {form.targetAudience === 'general-audience' && 'Accessible, broad appeal'}
+              </p>
+            )}
           </div>
           <div>
             <Label className="text-muted-foreground">Content Goal</Label>
@@ -205,13 +239,13 @@ export function LongFormGeneratorForm() {
           <div>
             <Label className="text-muted-foreground">Pacing: {pacing}/10</Label>
             <div className="pt-2">
-              <input type="range" min={1} max={10} step={1} value={pacing} onChange={e => setPacing(Number(e.target.value))} className="w-full" />
+              <Slider min={1} max={10} step={1} value={pacing} onValueChange={(v) => setPacing(v)} />
             </div>
           </div>
           <div>
             <Label className="text-muted-foreground">Detail Level: {detailLevel}/5</Label>
             <div className="pt-2">
-              <input type="range" min={1} max={5} step={1} value={detailLevel} onChange={e => setDetailLevel(Number(e.target.value))} className="w-full" />
+              <Slider min={1} max={5} step={1} value={detailLevel} onValueChange={(v) => setDetailLevel(v)} />
             </div>
           </div>
         </div>

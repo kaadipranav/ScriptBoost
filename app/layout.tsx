@@ -5,6 +5,9 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { Navigation } from '@/components/navigation';
 import { Footer } from '@/components/footer';
 import { Toaster } from '@/components/toaster';
+import SWRegister from '@/components/sw-register';
+import ConsentBanner from '@/components/consent-banner';
+import Analytics from '@/components/analytics';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -85,6 +88,9 @@ export default function RootLayout({
             <Footer />
           </div>
           <Toaster />
+          <SWRegister />
+          <ConsentBanner />
+          <Analytics />
         </ThemeProvider>
       </body>
     </html>

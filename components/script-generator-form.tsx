@@ -11,6 +11,8 @@ import { Platform, Tone, ContentGoal, TargetAudience, ScriptLength, GeneratedScr
 import { cn } from "@/lib/utils"
 import { ScriptResults } from "./script-results"
 import { generateScript, getErrorMessage, validateScriptInput, sanitizeInput, APIError } from "@/lib/api-client"
+import { getUsageController, estimateCostUsd } from "@/lib/usage-controls"
+
 import { useToast } from "@/lib/use-toast"
 import { Tooltip } from "./ui/tooltip"
 
@@ -88,6 +90,8 @@ export function ScriptGeneratorForm() {
   })
   const [generatedScript, setGeneratedScript] = useState<GeneratedScript | null>(null)
   const [apiError, setApiError] = useState<string | null>(null)
+  const usage = getUsageController('short')
+  const [remainingGenerations, setRemainingGenerations] = useState<number>(0)
 
   // Check server config (OPENROUTER_API_KEY presence)
   useEffect(() => {
@@ -115,6 +119,13 @@ export function ScriptGeneratorForm() {
     }, 1000)
     return () => clearInterval(id)
   }, [cooldownSeconds])
+
+  // Refresh remaining generations indicator each mount and after actions
+  useEffect(() => {
+    const { remaining } = usage.getSessionInfo()
+    setRemainingGenerations(remaining)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // word helpers
   const countWords = (v: string) => (v?.trim() ? v.trim().split(/\s+/).length : 0)
@@ -237,19 +248,20 @@ export function ScriptGeneratorForm() {
         additionalContext: sanitizeInput(mergedContext)
       }
 
-      const script = await generateScript(sanitizedInput, (attempt, error) => {
-        setLoadingState(prev => ({
-          ...prev,
-          retryAttempt: attempt,
-          estimatedTime: prev.estimatedTime + 10
-        }))
-        
-        toast({
-          title: `Retry Attempt ${attempt}`,
-          description: `Retrying due to: ${getErrorMessage(error)}`,
-          variant: "warning"
+      const script = await usage.enqueue(() =>
+        generateScript(sanitizedInput, (attempt, error) => {
+          setLoadingState(prev => ({
+            ...prev,
+            retryAttempt: attempt,
+            estimatedTime: prev.estimatedTime + 10
+          }))
+          toast({
+            title: `Retry Attempt ${attempt}`,
+            description: `Retrying due to: ${getErrorMessage(error)}`,
+            variant: "warning"
+          })
         })
-      })
+      )
 
       clearInterval(progressInterval)
       setLoadingState(prev => ({ ...prev, progress: 100 }))
@@ -263,6 +275,8 @@ export function ScriptGeneratorForm() {
           retryAttempt: 0,
           canCancel: false
         })
+        usage.recordSuccess({ niche: formData.niche, tone: formData.tone, estCostUsd: estimateCostUsd() })
+        setRemainingGenerations(usage.getSessionInfo().remaining)
         
         toast({
           title: "Script Generated!",
@@ -285,6 +299,9 @@ export function ScriptGeneratorForm() {
         const errorMessage = getErrorMessage(error)
         setApiError(errorMessage)
       }
+      usage.recordFailure()
+      const cd = usage.getCooldownSeconds()
+      if (cd > 0) setCooldownSeconds(cd)
       
       setLoadingState({
         isLoading: false,
@@ -338,6 +355,9 @@ export function ScriptGeneratorForm() {
           </p>
         </div>
       )}
+      <div className="mb-4 text-xs text-muted-foreground">
+        Remaining free generations today: <strong>{remainingGenerations}</strong> (testing mode — limits not enforced)
+      </div>
       {(apiError || cooldownSeconds > 0) && (
         <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
           <p className="text-red-800 dark:text-red-200 text-sm">
@@ -404,21 +424,45 @@ export function ScriptGeneratorForm() {
               <Info className="h-4 w-4 text-muted-foreground cursor-help" />
             </Tooltip>
           </div>
-          <Select
-            id="audience"
-            value={formData.targetAudience}
-            onChange={(e) => updateFormData("targetAudience", e.target.value as TargetAudience)}
-            className="text-base h-12"
-          >
-            <option value={TargetAudience.GEN_Z}>Gen Z (18-26) - TikTok natives, trend-focused</option>
-            <option value={TargetAudience.MILLENNIALS}>Millennials (27-42) - Career-focused, nostalgic</option>
-            <option value={TargetAudience.BUSINESS_OWNERS}>Business Owners - Growth & efficiency focused</option>
-            <option value={TargetAudience.PARENTS}>Parents - Family & time-saving focused</option>
-            <option value={TargetAudience.FITNESS_ENTHUSIASTS}>Fitness Enthusiasts - Health & motivation focused</option>
-            <option value={TargetAudience.TECH_PROFESSIONALS}>Tech Professionals - Innovation & productivity focused</option>
-            <option value={TargetAudience.STUDENTS}>Students - Learning & budget-conscious</option>
-            <option value={TargetAudience.ENTREPRENEURS}>Entrepreneurs - Hustle & success focused</option>
-          </Select>
+          {(() => {
+            const audienceDescriptions: Record<TargetAudience, string> = {
+              [TargetAudience.GEN_Z]: "18–26 | Trend-savvy, fast-paced content",
+              [TargetAudience.MILLENNIALS]: "27–42 | Career-focused, nostalgic cues",
+              [TargetAudience.BUSINESS_OWNERS]: "Decision-makers | ROI and efficiency",
+              [TargetAudience.PARENTS]: "Time-strapped | Family-first, practical",
+              [TargetAudience.FITNESS_ENTHUSIASTS]: "Health, metrics, motivation",
+              [TargetAudience.TECH_PROFESSIONALS]: "Innovation, productivity, tooling",
+              [TargetAudience.STUDENTS]: "Budget-conscious, learning-driven",
+              [TargetAudience.ENTREPRENEURS]: "Growth, hustle, outcomes"
+            }
+            return (
+              <>
+                <Select
+                  id="audience"
+                  aria-label="Target audience"
+                  value={formData.targetAudience}
+                  onChange={(e) => updateFormData("targetAudience", e.target.value as TargetAudience)}
+                  className="text-base h-12"
+                >
+                  <optgroup label="Generational">
+                    <option value={TargetAudience.GEN_Z}>Gen Z (18–26)</option>
+                    <option value={TargetAudience.MILLENNIALS}>Millennials (27–42)</option>
+                    <option value={TargetAudience.STUDENTS}>Students</option>
+                  </optgroup>
+                  <optgroup label="Professional">
+                    <option value={TargetAudience.TECH_PROFESSIONALS}>Tech Professionals</option>
+                    <option value={TargetAudience.BUSINESS_OWNERS}>Business Owners</option>
+                    <option value={TargetAudience.ENTREPRENEURS}>Entrepreneurs</option>
+                  </optgroup>
+                  <optgroup label="Lifestyle & Interests">
+                    <option value={TargetAudience.FITNESS_ENTHUSIASTS}>Fitness Enthusiasts</option>
+                    <option value={TargetAudience.PARENTS}>Parents</option>
+                  </optgroup>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">{audienceDescriptions[formData.targetAudience]}</p>
+              </>
+            )
+          })()}
         </div>
 
         {/* Content Goal */}
@@ -636,13 +680,14 @@ export function ScriptGeneratorForm() {
               <Info className="h-4 w-4 text-muted-foreground cursor-help" />
             </Tooltip>
           </div>
-          <Input
+          <textarea
             id="context"
-            placeholder="Any specific requirements, brand guidelines, or additional details..."
+            placeholder="Key points, brand voice, examples, constraints, hashtags, etc."
             value={formData.additionalContext}
             onChange={(e) => updateFormData("additionalContext", e.target.value)}
-            className="w-full text-base h-12"
-            maxLength={500}
+            rows={4}
+            className="w-full bg-card border border-border rounded-md p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            maxLength={1000}
           />
           <div className="flex justify-between items-center">
             <p className="text-xs text-muted-foreground">

@@ -25,7 +25,7 @@ export default function HomePage() {
         </div>
 
         {/* Main Content Area */}
-        <div id="generator" className="bg-card border border-neutral-200 dark:border-neutral-700 rounded-2xl shadow-lg p-10 mb-20">
+        <div id="generator" className="bg-card/70 dark:bg-card border border-border rounded-2xl shadow-lg p-10 mb-20 backdrop-blur-sm supports-[backdrop-filter]:bg-card/60">
           <div className="text-center">
             <h2 className="text-3xl font-bold text-foreground mb-4">
               Generate Your Next Viral Script

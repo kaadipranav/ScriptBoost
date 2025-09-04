@@ -27,7 +27,8 @@ const Slider = React.forwardRef<HTMLInputElement, SliderProps>(
           value={value}
           onChange={handleChange}
           className={cn(
-            "relative h-2 w-full cursor-pointer appearance-none rounded-full bg-secondary outline-none disabled:cursor-not-allowed disabled:opacity-50",
+            // Track styling: ensure sufficient contrast in both light and dark themes
+            "relative h-2 w-full cursor-pointer appearance-none rounded-full bg-muted ring-1 ring-border outline-none disabled:cursor-not-allowed disabled:opacity-50",
             "[&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:border-0 [&::-webkit-slider-thumb]:transition-all [&::-webkit-slider-thumb]:hover:scale-110",
             "[&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:transition-all [&::-moz-range-thumb]:hover:scale-110",
             className
